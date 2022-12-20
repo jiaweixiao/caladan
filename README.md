@@ -8,9 +8,49 @@ rapidly reallocating cores across applications.
 
 For any questions about Caladan, please email <caladan@csail.mit.edu>.
 
+## Setup
+
+1) Enable monitor/mwait in BIOS.
+
+Check it with
+```
+lscpu | grep monitor
+```
+
+2) Enable intel idle driver.
+
+Make sure `idle=poll/hlt/nomwait` is not set in kernel cmdline in file `/etc/default/grub`.
+
+Check current driver with
+```
+cat /sys/devices/system/cpu/cpuidle/current_driver
+```
+It should be `intel_idle`.
+
+3) Install Mellanox OFED.
+```
+wget "https://content.mellanox.com/ofed/MLNX_OFED-4.9-5.1.0.0/MLNX_OFED_LINUX-4.9-5.1.0.0-ubuntu20.04-x86_64.iso"
+sudo mount -o ro,loop MLNX_OFED_LINUX-4.9-5.1.0.0-ubuntu20.04-x86_64.iso /mnt
+sudo /mnt/mlnxofedinstall --add-kernel-support --dpdk --upstream-libs # it's fine to see 'Failed to install libibverbs-dev DEB'
+sudo /etc/init.d/openibd restart
+```
+4) Configure IB NIC.
+
+Switch mlx5 nic port to eth mode
+```
+sudo mstconfig -d <pci addr> set LINK_TYPE_P<port id>=2
+sudo mstfwreset -d <pci addr> -l3 -y reset
+```
+
 ## How to Run Caladan
 
 1) Clone the Caladan repository.
+
+The ib device name should be hard coded with `strncmp(ibv_get_device_name(ib_dev), "mlx5", 4)` in
+file `caladan/runtime/net/directpath/mlx5/mlx5_init.c`.
+
+The ib device port should also be hard coded with `dp.port = 0` in file
+`caladan/iokernel/dpdk.c`.
 
 2) Set up submodules (e.g., DPDK, SPDK, and rdma-core).
 
@@ -34,7 +74,7 @@ sudo ./scripts/setup_machine.sh
 
 ```
 curl https://sh.rustup.rs -sSf | sh
-rustup default nightly
+rustup default nightly-2021-01-07
 ```
 ```
 cd apps/synthetic
