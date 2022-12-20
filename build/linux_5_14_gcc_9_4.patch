@@ -1,0 +1,113 @@
+From dfbfcdec610e0f3976c3468bf4f192ea46ffb2e3 Mon Sep 17 00:00:00 2001
+From: Jiawei Xiao <jiawxiao@gmail.com>
+Date: Tue, 20 Dec 2022 20:49:47 +0800
+Subject: [PATCH] build on linux 5.14.0 with gcc 9.4.0
+
+---
+ drivers/crypto/virtio/virtio_pci.h | 2 ++
+ drivers/net/ifc/base/ifcvf.h       | 2 ++
+ drivers/net/virtio/virtio_pci.h    | 2 ++
+ kernel/linux/igb_uio/igb_uio.c     | 3 +++
+ kernel/linux/kni/kni_dev.h         | 2 +-
+ kernel/linux/kni/kni_net.c         | 2 +-
+ 6 files changed, 11 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/crypto/virtio/virtio_pci.h b/drivers/crypto/virtio/virtio_pci.h
+index d9a214dfd0..695d44ab53 100644
+--- a/drivers/crypto/virtio/virtio_pci.h
++++ b/drivers/crypto/virtio/virtio_pci.h
+@@ -81,7 +81,9 @@ struct virtqueue;
+ #define VIRTIO_RING_F_INDIRECT_DESC	28
+ 
+ #define VIRTIO_F_VERSION_1		32
++#ifndef VIRTIO_F_IOMMU_PLATFORM
+ #define VIRTIO_F_IOMMU_PLATFORM	33
++#endif
+ 
+ /* The Guest publishes the used index for which it expects an interrupt
+  * at the end of the avail ring. Host should ignore the avail->flags field.
+diff --git a/drivers/net/ifc/base/ifcvf.h b/drivers/net/ifc/base/ifcvf.h
+index 9be2770fea..2d7917897d 100644
+--- a/drivers/net/ifc/base/ifcvf.h
++++ b/drivers/net/ifc/base/ifcvf.h
+@@ -13,7 +13,9 @@
+ #define IFCVF_SUBSYS_DEVICE_ID	0x001A
+ 
+ #define IFCVF_MAX_QUEUES		1
++#ifndef VIRTIO_F_IOMMU_PLATFORM
+ #define VIRTIO_F_IOMMU_PLATFORM		33
++#endif
+ 
+ /* Common configuration */
+ #define IFCVF_PCI_CAP_COMMON_CFG	1
+diff --git a/drivers/net/virtio/virtio_pci.h b/drivers/net/virtio/virtio_pci.h
+index a38cb45adb..2fa6f6eb5c 100644
+--- a/drivers/net/virtio/virtio_pci.h
++++ b/drivers/net/virtio/virtio_pci.h
+@@ -112,7 +112,9 @@ struct virtnet_ctl;
+ #define VIRTIO_RING_F_INDIRECT_DESC	28
+ 
+ #define VIRTIO_F_VERSION_1		32
++#ifndef VIRTIO_F_IOMMU_PLATFORM
+ #define VIRTIO_F_IOMMU_PLATFORM	33
++#endif
+ #define VIRTIO_F_RING_PACKED		34
+ 
+ /*
+diff --git a/kernel/linux/igb_uio/igb_uio.c b/kernel/linux/igb_uio/igb_uio.c
+index 039f5a5f63..7825bed3de 100644
+--- a/kernel/linux/igb_uio/igb_uio.c
++++ b/kernel/linux/igb_uio/igb_uio.c
+@@ -237,6 +237,7 @@ igbuio_pci_enable_interrupts(struct rte_uio_pci_dev *udev)
+ #endif
+ 
+ 	/* falls through - to MSI */
++	fallthrough;
+ 	case RTE_INTR_MODE_MSI:
+ #ifndef HAVE_ALLOC_IRQ_VECTORS
+ 		if (pci_enable_msi(udev->pdev) == 0) {
+@@ -256,6 +257,7 @@ igbuio_pci_enable_interrupts(struct rte_uio_pci_dev *udev)
+ 		}
+ #endif
+ 	/* falls through - to INTX */
++	fallthrough;
+ 	case RTE_INTR_MODE_LEGACY:
+ 		if (pci_intx_mask_supported(udev->pdev)) {
+ 			dev_dbg(&udev->pdev->dev, "using INTX");
+@@ -266,6 +268,7 @@ igbuio_pci_enable_interrupts(struct rte_uio_pci_dev *udev)
+ 		}
+ 		dev_notice(&udev->pdev->dev, "PCI INTX mask not supported\n");
+ 	/* falls through - to no IRQ */
++	fallthrough;
+ 	case RTE_INTR_MODE_NONE:
+ 		udev->mode = RTE_INTR_MODE_NONE;
+ 		udev->info.irq = UIO_IRQ_NONE;
+diff --git a/kernel/linux/kni/kni_dev.h b/kernel/linux/kni/kni_dev.h
+index 5e75c6371f..4f36b23fe7 100644
+--- a/kernel/linux/kni/kni_dev.h
++++ b/kernel/linux/kni/kni_dev.h
+@@ -101,7 +101,7 @@ static inline phys_addr_t iova_to_phys(struct task_struct *tsk,
+ 	offset = iova & (PAGE_SIZE - 1);
+ 
+ 	/* Read one page struct info */
+-	ret = get_user_pages_remote(tsk, tsk->mm, iova, 1,
++	ret = get_user_pages_remote(tsk->mm, iova, 1,
+ 				    FOLL_TOUCH, &page, NULL, NULL);
+ 	if (ret < 0)
+ 		return 0;
+diff --git a/kernel/linux/kni/kni_net.c b/kernel/linux/kni/kni_net.c
+index 1ba9b1b99f..421bb28def 100644
+--- a/kernel/linux/kni/kni_net.c
++++ b/kernel/linux/kni/kni_net.c
+@@ -624,7 +624,7 @@ kni_net_rx(struct kni_dev *kni)
+  * Deal with a transmit timeout.
+  */
+ static void
+-kni_net_tx_timeout(struct net_device *dev)
++kni_net_tx_timeout(struct net_device *dev, unsigned int txqueue)
+ {
+ 	pr_debug("Transmit timeout at %ld, latency %ld\n", jiffies,
+ 			jiffies - dev_trans_start(dev));
+-- 
+2.25.1
+

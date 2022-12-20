@@ -141,8 +141,8 @@ static void ksched_next_tid(struct ksched_percpu *kp, int cpu, pid_t tid)
 		return;
 	}
 
-	if (WARN_ON_ONCE(p->on_cpu || p->state == TASK_WAKING ||
-			 p->state == TASK_RUNNING)) {
+	if (WARN_ON_ONCE(p->on_cpu || p->__state == TASK_WAKING ||
+			 p->__state == TASK_RUNNING)) {
 		rcu_read_unlock();
 		return;
 	}

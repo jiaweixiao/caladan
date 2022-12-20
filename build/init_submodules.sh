@@ -28,6 +28,8 @@ elif lspci | grep -q 'ConnectX-3'; then
   rm -f dpdk/drivers/net/mlx4/mlx4_custom.h
   patch -p1 -N -d dpdk/ < build/mlx4_19_11.patch
 fi
+patch -p1 -N -d dpdk/ < build/linux_5_14_gcc_9_4.patch
+
 make -C dpdk/ config T=x86_64-native-linuxapp-gcc
 make -C dpdk/ -j $CORES
 
